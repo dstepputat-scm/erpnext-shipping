@@ -27,6 +27,15 @@ frappe.ui.form.on("Shipment", {
 				},
 				__("Tools"),
 			);
+			if (frm.doc.service_provider == "LetMeShip" && frm.doc.tracking_status == "Delivered") {
+				frm.add_custom_button(
+					__("Proof of Delivery"),
+					function () {
+						return frm.events.fetch_proof_of_delivery(frm);
+					},
+					__("Tools"),
+				);
+			}
 			if (frm.doc.tracking_status != "Delivered") {
 				frm.add_custom_button(
 					__("Update Tracking"),
@@ -58,6 +67,12 @@ frappe.ui.form.on("Shipment", {
 
 	fetch_shipping_rates: function (frm) {
 		if (!frm.doc.shipment_id) {
+			if (frm.is_dirty()) {
+				// the rates depend on the shipping options, which are read from the saved Shipment
+				frm.save("Update").then(() => frm.events.fetch_shipping_rates(frm));
+				return;
+			}
+
 			frappe.call({
 				method: "erpnext_shipping.erpnext_shipping.shipping.fetch_shipping_rates",
 				freeze: true,
@@ -76,6 +91,7 @@ frappe.ui.form.on("Shipment", {
 							: frm.doc.pickup_contact_name,
 					delivery_contact_name: frm.doc.delivery_contact_name,
 					value_of_goods: frm.doc.value_of_goods,
+					shipment: frm.doc.name,
 				},
 				callback: function (r) {
 					if (r.message && r.message.length) {
@@ -122,6 +138,23 @@ frappe.ui.form.on("Shipment", {
 		});
 	},
 
+	fetch_proof_of_delivery: function (frm) {
+		frappe.call({
+			method: "erpnext_shipping.erpnext_shipping.shipping.fetch_proof_of_delivery",
+			freeze: true,
+			freeze_message: __("Fetching Proof of Delivery"),
+			args: {
+				shipment: frm.doc.name,
+			},
+			callback: function (r) {
+				if (r.message) {
+					window.open(r.message);
+					frm.reload_doc();
+				}
+			},
+		});
+	},
+
 	update_tracking: function (frm, service_provider, shipment_id) {
 		const delivery_notes = frm.doc.shipment_delivery_note.map((d) => d.delivery_note);
 
@@ -148,9 +181,39 @@ function select_from_available_services(frm, available_services) {
 	frappe.require("shipping.bundle.js", () => show_service_selector(frm, available_services));
 }
 
+function get_service_notes(service) {
+	const notes = [];
+	if (service.insurance) {
+		notes.push(
+			service.insurance_premium
+				? __("Insurance: {0}", [format_currency(service.insurance_premium, service.currency)])
+				: __("Insurance included"),
+		);
+	}
+	if (service.insurance_limit) {
+		notes.push(
+			`<span class="text-warning">${__("Only insured up to {0}", [
+				format_currency(service.insurance_limit, service.currency),
+			])}</span>`,
+		);
+	}
+	if (service.customs_requirements && service.customs_requirements.length) {
+		notes.push(
+			`<span class="text-warning">${__("Requires: {0}", [
+				frappe.utils.escape_html(service.customs_requirements.join(", ")),
+			])}</span>`,
+		);
+	}
+	(service.messages || []).forEach((message) => {
+		notes.push(`<span class="text-muted">${frappe.utils.escape_html(message)}</span>`);
+	});
+	return notes.join("<br>");
+}
+
 function show_service_selector(frm, available_services) {
 	const arranged_services = available_services.reduce(
 		(prev, curr) => {
+			curr.notes = get_service_notes(curr);
 			if (curr.is_preferred) {
 				prev.preferred_services.push(curr);
 			} else {
@@ -177,7 +240,7 @@ function show_service_selector(frm, available_services) {
 
 	dialog.fields_dict.available_services.$wrapper.html(
 		frappe.render_template("shipment_service_selector", {
-			header_columns: [__("Platform"), __("Carrier"), __("Parcel Service"), __("Price"), ""],
+			header_columns: [__("Platform"), __("Carrier"), __("Parcel Service"), __("Price"), __("Notes"), ""],
 			data: arranged_services,
 		}),
 	);
@@ -218,7 +281,7 @@ function show_service_selector(frm, available_services) {
 					frappe.msgprint({
 						message: __("Shipment {1} has been created with {0}.", [
 							r.message.service_provider,
-							r.message.shipment_id.bold(),
+							String(r.message.shipment_id).bold(),
 						]),
 						title: __("Shipment Created"),
 						indicator: "green",

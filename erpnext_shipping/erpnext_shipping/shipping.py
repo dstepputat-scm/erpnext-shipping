@@ -4,10 +4,12 @@ import json
 
 import frappe
 from erpnext.stock.doctype.shipment.shipment import get_company_contact
+from frappe import _
 
 from erpnext_shipping.erpnext_shipping.doctype.letmeship.letmeship import (
 	LETMESHIP_PROVIDER,
 	get_letmeship_utils,
+	get_shipment_options,
 )
 from erpnext_shipping.erpnext_shipping.doctype.sendcloud.sendcloud import SENDCLOUD_PROVIDER, SendCloudUtils
 from erpnext_shipping.erpnext_shipping.utils import (
@@ -29,6 +31,7 @@ def fetch_shipping_rates(
 	value_of_goods,
 	pickup_contact_name=None,
 	delivery_contact_name=None,
+	shipment=None,
 ):
 	# Return Shipping Rates for the various Shipping Providers
 	shipment_prices = []
@@ -61,6 +64,7 @@ def fetch_shipping_rates(
 				value_of_goods=value_of_goods,
 				pickup_contact=pickup_contact,
 				delivery_contact=delivery_contact,
+				options=get_shipment_options(shipment) if shipment else None,
 			)
 			or []
 		)
@@ -135,6 +139,7 @@ def create_shipment(
 			pickup_contact=pickup_contact,
 			delivery_contact=delivery_contact,
 			service_info=service_info,
+			options=get_shipment_options(shipment),
 		)
 
 	if service_info["service_provider"] == SENDCLOUD_PROVIDER:
@@ -163,10 +168,35 @@ def create_shipment(
 			}
 		)
 
+		if shipment_info.get("service_provider") == LETMESHIP_PROVIDER:
+			shipment.db_set(
+				{
+					"letmeship_insurance_premium": shipment_info.get("insurance_premium"),
+					"letmeship_service_notes": shipment_info.get("service_notes"),
+				}
+			)
+
 		if delivery_notes:
 			update_delivery_note(delivery_notes=delivery_notes, shipment_info=shipment_info)
 
 	return shipment_info
+
+
+def cancel_shipment_with_provider(doc, method=None):
+	"""Cancel the booking at the provider before the Shipment gets cancelled.
+
+	Throws if the provider refuses, so ERPNext and the provider stay in sync.
+	"""
+	if doc.service_provider != LETMESHIP_PROVIDER or not doc.shipment_id:
+		return
+
+	if not frappe.db.get_single_value("LetMeShip", "enabled") or not frappe.db.get_single_value(
+		"LetMeShip", "cancel_at_letmeship"
+	):
+		return
+
+	get_letmeship_utils().cancel_shipment(doc.shipment_id)
+	doc.add_comment("Info", _("Shipment {0} was cancelled at LetMeShip.").format(doc.shipment_id))
 
 
 def get_delivery_company_name(shipment: str) -> str | None:
@@ -202,13 +232,52 @@ def print_shipping_label(shipment: str):
 	return shipping_label
 
 
+@frappe.whitelist()
+def fetch_proof_of_delivery(shipment: str):
+	"""Return the URL of the proof of delivery, attaching it to the Shipment if needed."""
+	shipment_doc = frappe.get_doc("Shipment", shipment)
+	shipment_doc.check_permission("read")
+
+	if file_url := get_proof_of_delivery_file(shipment):
+		return file_url
+
+	file_url = attach_proof_of_delivery(shipment, shipment_doc.shipment_id)
+	if not file_url:
+		frappe.throw(_("The proof of delivery is not available yet."))
+
+	return file_url
+
+
+def attach_proof_of_delivery(shipment: str, shipment_id: str) -> str | None:
+	content = get_letmeship_utils().get_proof_of_delivery(shipment_id)
+	if not content:
+		return None
+
+	return save_attachment(shipment, f"pod_{shipment}.pdf", content)
+
+
+def get_proof_of_delivery_file(shipment: str) -> str | None:
+	return frappe.db.get_value(
+		"File",
+		{"attached_to_doctype": "Shipment", "attached_to_name": shipment, "file_name": f"pod_{shipment}.pdf"},
+		"file_url",
+	)
+
+
 def save_label_as_attachment(shipment: str, content: bytes, index: int = None) -> str:
 	"""Store label as attachment to Shipment and return the URL."""
-	attachment = frappe.new_doc("File")
 	if index is not None:
-		attachment.file_name = f"label_{shipment}_{index}.pdf"
+		file_name = f"label_{shipment}_{index}.pdf"
 	else:
-		attachment.file_name = f"label_{shipment}.pdf"
+		file_name = f"label_{shipment}.pdf"
+
+	return save_attachment(shipment, file_name, content)
+
+
+def save_attachment(shipment: str, file_name: str, content: bytes) -> str:
+	"""Store a file as attachment to Shipment and return the URL."""
+	attachment = frappe.new_doc("File")
+	attachment.file_name = file_name
 	attachment.content = content
 	attachment.folder = "Home/Attachments"
 	attachment.attached_to_doctype = "Shipment"
@@ -239,14 +308,24 @@ def update_tracking(shipment, service_provider, shipment_id, delivery_notes=None
 		return
 
 	shipment = frappe.get_doc("Shipment", shipment)
-	shipment.db_set(
-		{
-			"awb_number": tracking_data.get("awb_number"),
-			"tracking_status": tracking_data.get("tracking_status"),
-			"tracking_status_info": tracking_data.get("tracking_status_info"),
-			"tracking_url": tracking_data.get("tracking_url"),
-		}
-	)
+	values = {
+		"awb_number": tracking_data.get("awb_number"),
+		"tracking_status": tracking_data.get("tracking_status"),
+		"tracking_status_info": tracking_data.get("tracking_status_info"),
+		"tracking_url": tracking_data.get("tracking_url"),
+	}
+	if service_provider == LETMESHIP_PROVIDER:
+		values["letmeship_tracking_history"] = tracking_data.get("tracking_history")
+
+	shipment.db_set(values)
+
+	if (
+		service_provider == LETMESHIP_PROVIDER
+		and tracking_data.get("tracking_status") == "Delivered"
+		and frappe.db.get_single_value("LetMeShip", "attach_proof_of_delivery")
+		and not get_proof_of_delivery_file(shipment.name)
+	):
+		attach_proof_of_delivery(shipment.name, shipment_id)
 
 	if delivery_notes:
 		update_delivery_note(delivery_notes=delivery_notes, tracking_info=tracking_data)

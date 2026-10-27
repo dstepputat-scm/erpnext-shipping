@@ -115,7 +115,7 @@ def show_error_alert(action):
 def update_tracking_info_daily():
 	"""Daily scheduled event to update Tracking info for not delivered Shipments
 
-	Also Updates the related Delivery Notes.
+	Also Updates the related Delivery Notes and attaches the proof of delivery.
 	"""
 	from erpnext_shipping.erpnext_shipping.shipping import update_tracking
 
@@ -130,14 +130,9 @@ def update_tracking_info_daily():
 	)
 	for shipment in shipments:
 		shipment_doc = frappe.get_doc("Shipment", shipment.name)
-		tracking_info = update_tracking(
+		update_tracking(
 			shipment.name,
 			shipment_doc.service_provider,
 			shipment_doc.shipment_id,
-			shipment_doc.shipment_delivery_note,
+			[row.delivery_note for row in shipment_doc.shipment_delivery_note],
 		)
-
-		if tracking_info:
-			fields = ["awb_number", "tracking_status", "tracking_status_info", "tracking_url"]
-			for field in fields:
-				shipment_doc.db_set(field, tracking_info.get(field))

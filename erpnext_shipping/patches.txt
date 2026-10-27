@@ -1,3 +1,8 @@
+[pre_model_sync]
 erpnext_shipping.erpnext_shipping.patches.create_custom_delivery_note_fields # 2024-01-29
 erpnext_shipping.erpnext_shipping.patches.change_tracking_url_column_type
 execute:from erpnext_shipping.install import after_install;after_install()
+
+[post_model_sync]
+execute:from erpnext_shipping.install import after_install;after_install() # 2026-10-27
+erpnext_shipping.erpnext_shipping.patches.set_letmeship_defaults

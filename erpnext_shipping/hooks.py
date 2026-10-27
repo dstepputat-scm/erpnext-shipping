@@ -126,6 +126,9 @@ doc_events = {
 	"Shipment": {
 		"validate": [
 			"erpnext_shipping.erpnext_shipping.utils.validate_phone",
-		]
+		],
+		"before_cancel": [
+			"erpnext_shipping.erpnext_shipping.shipping.cancel_shipment_with_provider",
+		],
 	},
 }
