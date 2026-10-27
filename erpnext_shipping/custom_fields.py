@@ -78,11 +78,25 @@ def get_custom_fields():
 		],
 		"Shipment": [
 			{
+				"fieldname": "value_from_sales_order",
+				"label": _("Get Value from Sales Order"),
+				"fieldtype": "Button",
+				"depends_on": "eval:doc.docstatus === 0",
+				"insert_after": "value_of_goods",
+			},
+			{
+				"fieldname": "description_from_sales_order",
+				"label": _("Get Description from Sales Order"),
+				"fieldtype": "Button",
+				"depends_on": "eval:doc.docstatus === 0",
+				"insert_after": "description_of_content",
+			},
+			{
 				"fieldname": "letmeship_section",
 				"label": _("LetMeShip Options"),
 				"fieldtype": "Section Break",
 				"collapsible": 1,
-				"insert_after": "description_of_content",
+				"insert_after": "description_from_sales_order",
 			},
 			{
 				"fieldname": "letmeship_insurance",
