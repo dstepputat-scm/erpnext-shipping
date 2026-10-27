@@ -83,7 +83,12 @@ class LetMeShipUtils:
 			json=json,
 		)
 
-		response.raise_for_status()
+		if not response.ok:
+			# keep LetMeShip's error details, raise_for_status() only reports the status code
+			raise HTTPError(
+				f"{response.status_code} {response.reason} for url: {response.url}\n{response.text}",
+				response=response,
+			)
 
 		data = response.json()
 		if "status" in data and data["status"]["code"] != "0":
@@ -395,9 +400,9 @@ class LetMeShipUtils:
 	def get_pickup_interval(self, pickup_date, options):
 		pickup_interval = {"date": pickup_date}
 		if options.pickup_from:
-			pickup_interval["timeFrom"] = get_time(options.pickup_from).strftime("%H:%M")
+			pickup_interval["timeFrom"] = get_time(options.pickup_from).strftime("%H:%M:%S")
 		if options.pickup_to:
-			pickup_interval["timeTo"] = get_time(options.pickup_to).strftime("%H:%M")
+			pickup_interval["timeTo"] = get_time(options.pickup_to).strftime("%H:%M:%S")
 
 		return pickup_interval
 

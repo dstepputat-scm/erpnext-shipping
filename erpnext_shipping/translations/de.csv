@@ -94,3 +94,7 @@ Shipment {0} was cancelled at LetMeShip.,Sendung {0} wurde bei LetMeShip stornie
 LetMeShip could not cancel Shipment {0}: {1},LetMeShip konnte die Sendung {0} nicht stornieren: {1},
 LetMeShip could not cancel Shipment {0}. HTTP Status Code: {1},LetMeShip konnte die Sendung {0} nicht stornieren. HTTP-Statuscode: {1},
 Cancellation failed,Stornierung fehlgeschlagen,
+Get Value from Sales Order,Warenwert aus Kundenauftrag übernehmen,
+Get Description from Sales Order,Beschreibung aus Kundenauftrag übernehmen,
+Select Sales Order,Kundenauftrag auswählen,
+Sales Orders of {0},Kundenaufträge von {0},

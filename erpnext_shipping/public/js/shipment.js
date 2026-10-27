@@ -65,6 +65,14 @@ frappe.ui.form.on("Shipment", {
 		}
 	},
 
+	value_from_sales_order: function (frm) {
+		get_from_sales_order(frm, "value_of_goods");
+	},
+
+	description_from_sales_order: function (frm) {
+		get_from_sales_order(frm, "description_of_content");
+	},
+
 	fetch_shipping_rates: function (frm) {
 		if (!frm.doc.shipment_id) {
 			if (frm.is_dirty()) {
@@ -176,6 +184,50 @@ frappe.ui.form.on("Shipment", {
 		});
 	},
 });
+
+async function get_from_sales_order(frm, fieldname) {
+	if (!frm.doc.__sales_order) {
+		// suggest the Sales Order of the linked Delivery Notes
+		const delivery_notes = (frm.doc.shipment_delivery_note || [])
+			.map((d) => d.delivery_note)
+			.filter(Boolean);
+		const r = await frappe.call({
+			method: "erpnext_shipping.erpnext_shipping.shipping.get_sales_orders_of_delivery_notes",
+			args: { delivery_notes: delivery_notes },
+		});
+		frm.doc.__sales_order = (r.message || [])[0];
+	}
+
+	const customer = frm.doc.delivery_to_type === "Customer" ? frm.doc.delivery_customer : null;
+	const dialog = new frappe.ui.Dialog({
+		title: __("Select Sales Order"),
+		fields: [
+			{
+				fieldtype: "Link",
+				fieldname: "sales_order",
+				label: __("Sales Order"),
+				options: "Sales Order",
+				reqd: 1,
+				default: frm.doc.__sales_order,
+				description: customer ? __("Sales Orders of {0}", [customer]) : "",
+				get_query: () => ({
+					filters: Object.assign({ docstatus: 1 }, customer ? { customer: customer } : {}),
+				}),
+			},
+		],
+		primary_action_label: __("Apply"),
+		primary_action: async (values) => {
+			const r = await frappe.call({
+				method: "erpnext_shipping.erpnext_shipping.shipping.get_sales_order_details",
+				args: { sales_order: values.sales_order },
+			});
+			frm.doc.__sales_order = values.sales_order;
+			frm.set_value(fieldname, r.message[fieldname]);
+			dialog.hide();
+		},
+	});
+	dialog.show();
+}
 
 function select_from_available_services(frm, available_services) {
 	frappe.require("shipping.bundle.js", () => show_service_selector(frm, available_services));
