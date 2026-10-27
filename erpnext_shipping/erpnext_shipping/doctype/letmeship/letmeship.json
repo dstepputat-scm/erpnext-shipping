@@ -8,7 +8,18 @@
   "enabled",
   "use_test_environment",
   "api_id",
-  "api_password"
+  "api_password",
+  "notifications_section",
+  "notify_recipient",
+  "carrier_notification",
+  "notification_text",
+  "column_break_notifications",
+  "tracking_notification_emails",
+  "documents_section",
+  "label_size",
+  "attach_proof_of_delivery",
+  "cancellation_section",
+  "cancel_at_letmeship"
  ],
  "fields": [
   {
@@ -34,11 +45,77 @@
    "fieldname": "use_test_environment",
    "fieldtype": "Check",
    "label": "Use Test Environment"
+  },
+  {
+   "fieldname": "notifications_section",
+   "fieldtype": "Section Break",
+   "label": "Notifications"
+  },
+  {
+   "default": "1",
+   "description": "The delivery contact of the Shipment receives the shipping notification from LetMeShip.",
+   "fieldname": "notify_recipient",
+   "fieldtype": "Check",
+   "label": "Notify Delivery Contact"
+  },
+  {
+   "default": "1",
+   "description": "Email and mobile number of the delivery contact are passed to the carrier (e.g. DPD Predict).",
+   "fieldname": "carrier_notification",
+   "fieldtype": "Check",
+   "label": "Carrier Notification for Delivery Contact"
+  },
+  {
+   "fieldname": "notification_text",
+   "fieldtype": "Small Text",
+   "label": "Recipient Notification Text"
+  },
+  {
+   "fieldname": "column_break_notifications",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Notified on delivery and on problems for every Shipment.",
+   "fieldname": "tracking_notification_emails",
+   "fieldtype": "Small Text",
+   "label": "Default Tracking Notification Emails"
+  },
+  {
+   "fieldname": "documents_section",
+   "fieldtype": "Section Break",
+   "label": "Documents"
+  },
+  {
+   "default": "default",
+   "description": "Use 100x150mm for thermal label printers.",
+   "fieldname": "label_size",
+   "fieldtype": "Select",
+   "label": "Label Size",
+   "options": "default\n100x150mm"
+  },
+  {
+   "default": "1",
+   "description": "Attach the proof of delivery to the Shipment once it is delivered.",
+   "fieldname": "attach_proof_of_delivery",
+   "fieldtype": "Check",
+   "label": "Attach Proof of Delivery"
+  },
+  {
+   "fieldname": "cancellation_section",
+   "fieldtype": "Section Break",
+   "label": "Cancellation"
+  },
+  {
+   "default": "1",
+   "description": "Cancelling a booked Shipment also cancels it at LetMeShip. If that fails the Shipment stays active. Disable to cancel in ERPNext only.",
+   "fieldname": "cancel_at_letmeship",
+   "fieldtype": "Check",
+   "label": "Cancel at LetMeShip"
   }
  ],
  "issingle": 1,
  "links": [],
- "modified": "2026-07-07 01:19:23.385682",
+ "modified": "2026-10-27 12:00:00.000000",
  "modified_by": "Administrator",
  "module": "ERPNext Shipping",
  "name": "LetMeShip",
