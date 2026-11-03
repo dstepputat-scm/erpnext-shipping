@@ -239,14 +239,14 @@ function get_service_notes(service) {
 	if (service.insurance) {
 		notes.push(
 			service.insurance_premium
-				? __("Insurance: {0}", [format_currency(service.insurance_premium, service.currency)])
+				? __("Insurance: {0}", [format_currency(service.insurance_premium, service.currency, 2)])
 				: __("Insurance included"),
 		);
 	}
 	if (service.insurance_limit) {
 		notes.push(
 			`<span class="text-warning">${__("Only insured up to {0}", [
-				format_currency(service.insurance_limit, service.currency),
+				format_currency(service.insurance_limit, service.currency, 2),
 			])}</span>`,
 		);
 	}
@@ -258,7 +258,11 @@ function get_service_notes(service) {
 		);
 	}
 	(service.messages || []).forEach((message) => {
-		notes.push(`<span class="text-muted">${frappe.utils.escape_html(message)}</span>`);
+		// highlight the messages that make a service unsuitable
+		const css_class = /exceeded|not possible|(doesn't|does not) support|please enter/i.test(message)
+			? "text-danger"
+			: "text-muted";
+		notes.push(`<span class="${css_class}">${frappe.utils.escape_html(message)}</span>`);
 	});
 	return notes.join("<br>");
 }
@@ -267,15 +271,39 @@ function show_service_selector(frm, available_services) {
 	const arranged_services = available_services.reduce(
 		(prev, curr) => {
 			curr.notes = get_service_notes(curr);
-			if (curr.is_preferred) {
+			if (curr.unsuitable) {
+				prev.unsuitable_services.push(curr);
+			} else if (curr.is_preferred) {
 				prev.preferred_services.push(curr);
 			} else {
 				prev.other_services.push(curr);
 			}
 			return prev;
 		},
-		{ preferred_services: [], other_services: [] },
+		{ preferred_services: [], other_services: [], unsuitable_services: [] },
 	);
+
+	const sections = [
+		{
+			key: "preferred_services",
+			title: __("Preferred Services"),
+			empty_message: __("No Preferred Services Available"),
+		},
+		{
+			key: "other_services",
+			title: __("Other Services"),
+			empty_message: __("No Services Available"),
+		},
+		{
+			key: "unsuitable_services",
+			title: __("Unsuitable Services"),
+			description: __(
+				"The carrier reports that the Shipment exceeds a limit of these services or an option is not supported. Booking them may fail or cost extra.",
+			),
+			collapsible: true,
+			hide_if_empty: true,
+		},
+	].map((section) => Object.assign(section, { services: arranged_services[section.key] }));
 
 	const dialog = new frappe.ui.Dialog({
 		title: __("Select Service to Create Shipment"),
@@ -288,21 +316,23 @@ function show_service_selector(frm, available_services) {
 			},
 		],
 	});
+	// use the available screen width, the notes column needs room
+	dialog.$wrapper.find(".modal-dialog").css({ "max-width": "min(1600px, 96vw)", width: "auto" });
 
 	const delivery_notes = frm.doc.shipment_delivery_note.map((d) => d.delivery_note);
 
 	dialog.fields_dict.available_services.$wrapper.html(
 		frappe.render_template("shipment_service_selector", {
-			header_columns: [__("Platform"), __("Carrier"), __("Parcel Service"), __("Price"), __("Notes"), ""],
-			data: arranged_services,
+			has_services: available_services.length > 0,
+			show_provider: new Set(available_services.map((s) => s.service_provider)).size > 1,
+			sections: sections,
 		}),
 	);
 
-	dialog.$body.on("click", ".btn", function () {
-		let service_type = $(this).attr("data-type");
-		let service_index = cint($(this).attr("id").split("-")[2]);
-		let service_data = arranged_services[service_type][service_index];
-		frm.select_row(service_data);
+	dialog.$body.on("click", "button[data-type]", function () {
+		const service_type = $(this).attr("data-type");
+		const service_index = cint($(this).attr("data-index"));
+		frm.select_row(arranged_services[service_type][service_index]);
 	});
 
 	frm.select_row = function (service_data) {

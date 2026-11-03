@@ -76,3 +76,22 @@ class TestLetMeShip(unittest.TestCase):
 		self.assertEqual(
 			get_error_message({"status": {"code": "1", "message": ["Weight too high", ""]}}), "Weight too high"
 		)
+
+	def test_unsuitable_service(self):
+		response = {
+			"baseServiceDetails": {
+				"id": 1,
+				"name": "Classic",
+				"carrier": "DPD",
+				"priceInfo": {"realWeight": 129, "netPrice": 28.53},
+			},
+			"messages": ["Weight exceeded. For this service it is 31.50 kg.<br /> Please enter \"Pallet\"."],
+			"cutOffTime": "11:45:00",
+		}
+		service = self.utils.get_service_dict(response)
+		self.assertEqual(len(service.messages), 2)
+		self.assertTrue(service.unsuitable)
+		self.assertEqual(service.cut_off_time, "11:45")
+
+		response["messages"] = ["Shipment must be booked no later than 11:45 AM!"]
+		self.assertFalse(self.utils.get_service_dict(response).unsuitable)

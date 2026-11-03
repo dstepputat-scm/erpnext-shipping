@@ -1,101 +1,79 @@
-{% if (data.preferred_services.length || data.other_services.length) { %}
-	<div style="overflow-x:scroll;">
-		<h5>{{ __("Preferred Services") }}</h5>
-		{% if (data.preferred_services.length) { %}
-			<table class="table table-bordered table-hover">
-				<thead class="grid-heading-row">
-					<tr>
-						{% for (var i = 0; i < header_columns.length; i++) { %}
-							<th style="padding-left: 12px;">{{ header_columns[i] }}</th>
-						{% } %}
-					</tr>
-				</thead>
-				<tbody>
-					{% for (var i = 0; i < data.preferred_services.length; i++) { %}
-						<tr id="data-preferred-{{i}}">
-							<td class="service-info" style="width:12%;">{{ data.preferred_services[i].service_provider }}</td>
-							<td class="service-info" style="width:12%;">{{ data.preferred_services[i].carrier }}</td>
-							<td class="service-info" style="width:24%;">{{ data.preferred_services[i].service_name }}</td>
-							<td class="service-info" style="width:12%;">{{ format_currency(data.preferred_services[i].total_price, data.preferred_services[i].currency, 2) }}</td>
-							<td class="service-info service-notes" style="width:32%;">{{ data.preferred_services[i].notes }}</td>
-							<td style="width:8%;vertical-align: middle;">
-								<button
-									data-type="preferred_services"
-									id="data-preferred-{{i}}" type="button" class="btn">
-									{{ __("Select") }}
-								</button>
-							</td>
-						</tr>
-					{% } %}
-				</tbody>
-			</table>
-		{% } else { %}
-			<div style="text-align: center; padding: 10px;">
-				<span class="text-muted">
-					{{ __("No Preferred Services Available") }}
-				</span>
-			</div>
-		{% } %}
-		<h5>{{ __("Other Services") }}</h5>
-		{% if (data.other_services.length) { %}
-			<table class="table table-bordered table-hover">
-				<thead class="grid-heading-row">
-					<tr>
-						{% for (var i = 0; i < header_columns.length; i++) { %}
-							<th style="padding-left: 12px;" >{{ header_columns[i] }}</th>
-						{% } %}
-					</tr>
-				</thead>
-				<tbody>
-					{% for (var i = 0; i < data.other_services.length; i++) { %}
-						<tr id="data-other-{{i}}">
-							<td class="service-info" style="width:12%;">{{ data.other_services[i].service_provider }}</td>
-							<td class="service-info" style="width:12%;">{{ data.other_services[i].carrier }}</td>
-							<td class="service-info" style="width:24%;">{{ data.other_services[i].service_name }}</td>
-							<td class="service-info" style="width:12%;">{{ format_currency(data.other_services[i].total_price, data.other_services[i].currency, 2) }}</td>
-							<td class="service-info service-notes" style="width:32%;">{{ data.other_services[i].notes }}</td>
-							<td style="width:8%;vertical-align: middle;">
-								<button
-									data-type="other_services"
-									id="data-other-{{i}}" type="button" class="btn">
-									{{ __("Select") }}
-								</button>
-							</td>
-						</tr>
-					{% } %}
-				</tbody>
-			</table>
-		{% } else { %}
-		<div style="text-align: center; padding: 10px;">
-			<span class="text-muted">
-				{{ __("No Services Available") }}
-			</span>
-		</div>
+{% if (has_services) { %}
+	<div class="shipment-service-selector">
+		{% for (var s = 0; s < sections.length; s++) { %}
+			{% var section = sections[s]; %}
+			{% if (!section.services.length && section.hide_if_empty) { continue; } %}
+			{% if (section.collapsible) { %}
+				<details>
+					<summary class="section-title">{{ section.title }} ({{ section.services.length }})</summary>
+					<p class="text-muted small">{{ section.description }}</p>
+			{% } else { %}
+				<h5 class="section-title">{{ section.title }}</h5>
+			{% } %}
+			{% if (section.services.length) { %}
+				<div class="table-responsive">
+					<table class="table table-bordered table-hover">
+						<thead class="grid-heading-row">
+							<tr>
+								{% if (show_provider) { %}<th>{{ __("Platform") }}</th>{% } %}
+								<th>{{ __("Carrier") }}</th>
+								<th>{{ __("Parcel Service") }}</th>
+								<th class="text-right">{{ __("Price") }}</th>
+								<th>{{ __("Transit Time") }}</th>
+								<th>{{ __("Book by") }}</th>
+								<th>{{ __("Notes") }}</th>
+								<th></th>
+							</tr>
+						</thead>
+						<tbody>
+							{% for (var i = 0; i < section.services.length; i++) { %}
+								{% var service = section.services[i]; %}
+								<tr>
+									{% if (show_provider) { %}<td class="service-info">{{ service.service_provider }}</td>{% } %}
+									<td class="service-info text-nowrap">{{ service.carrier }}</td>
+									<td class="service-info">{{ service.service_name }}</td>
+									<td class="service-info text-right text-nowrap bold">
+										{{ format_currency(service.total_price, service.currency, 2) }}
+									</td>
+									<td class="service-info">{{ service.transfer_time || "" }}</td>
+									<td class="service-info text-nowrap">{{ service.cut_off_time || "" }}</td>
+									<td class="service-info service-notes">{{ service.notes }}</td>
+									<td class="service-info">
+										<button type="button" class="btn btn-sm {{ section.collapsible ? 'btn-default' : 'btn-primary' }}"
+											data-type="{{ section.key }}" data-index="{{ i }}">
+											{{ __("Select") }}
+										</button>
+									</td>
+								</tr>
+							{% } %}
+						</tbody>
+					</table>
+				</div>
+			{% } else { %}
+				<div class="text-center text-muted" style="padding: 10px;">{{ section.empty_message }}</div>
+			{% } %}
+			{% if (section.collapsible) { %}</details>{% } %}
 		{% } %}
 	</div>
 {% } else { %}
-	<div style="text-align: center; padding: 10px;">
-		<span class="text-muted">
-			{{ __("No Services Available") }}
-		</span>
-	</div>
+	<div class="text-center text-muted" style="padding: 10px;">{{ __("No Services Available") }}</div>
 {% } %}
 
 <style type="text/css" media="screen">
-.modal-dialog {
-	width: 750px;
+.shipment-service-selector .section-title {
+	margin: 16px 0 8px;
+	font-weight: 600;
+	cursor: default;
 }
-.service-info {
-	vertical-align: middle !important;
-	padding-left: 12px !important;
+.shipment-service-selector summary.section-title {
+	cursor: pointer;
 }
-.service-notes {
+.shipment-service-selector .service-info {
+	vertical-align: middle;
+	padding: 8px 12px;
+}
+.shipment-service-selector .service-notes {
 	font-size: var(--text-sm);
-}
-.btn:hover {
-	background-color: #dedede;
-}
-.ship {
-	font-size: 16px;
+	min-width: 280px;
 }
 </style>
