@@ -218,8 +218,13 @@ def print_shipping_label(shipment: str):
 	shipment_id = shipment_doc.shipment_id
 
 	if service_provider == LETMESHIP_PROVIDER:
-		letmeship = get_letmeship_utils()
-		shipping_label = letmeship.get_label(shipment_id)
+		shipping_label = get_label_files(shipment)
+		if not shipping_label:
+			labels = get_letmeship_utils().get_labels(shipment_id)
+			shipping_label = [
+				save_label_as_attachment(shipment, content, i if len(labels) > 1 else None)
+				for i, content in enumerate(labels, start=1)
+			]
 	elif service_provider == SENDCLOUD_PROVIDER:
 		sendcloud = SendCloudUtils()
 		shipping_label = []
@@ -261,6 +266,20 @@ def get_proof_of_delivery_file(shipment: str) -> str | None:
 		"File",
 		{"attached_to_doctype": "Shipment", "attached_to_name": shipment, "file_name": f"pod_{shipment}.pdf"},
 		"file_url",
+	)
+
+
+def get_label_files(shipment: str) -> list[str]:
+	"""Return the URLs of labels already attached to the Shipment."""
+	return frappe.get_all(
+		"File",
+		filters={
+			"attached_to_doctype": "Shipment",
+			"attached_to_name": shipment,
+			"file_name": ["like", f"label_{shipment}%.pdf"],
+		},
+		pluck="file_url",
+		order_by="file_name asc",
 	)
 
 

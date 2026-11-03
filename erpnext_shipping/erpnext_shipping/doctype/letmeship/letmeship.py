@@ -371,23 +371,29 @@ class LetMeShipUtils:
 
 		return ""
 
-	def get_label(self, shipment_id):
+	def get_labels(self, shipment_id) -> list[bytes]:
+		"""Return the PDF content of the shipping labels. Throws if none is ready yet."""
 		try:
-			shipment_label_response_data = self.request(
-				"GET", f"shipments/{shipment_id}/documents", params={"types": "LABEL"}
+			response_data = self.request("GET", f"shipments/{shipment_id}/documents", params={"types": "LABEL"})
+		except HTTPError as e:
+			self.throw_request_error(e)
+
+		documents = [d for d in response_data.get("documents") or [] if d.get("type", "LABEL") == "LABEL"]
+		labels = [
+			content
+			for document in documents
+			if (document.get("status") or "READY") == "READY" and (content := decode_document_data(document))
+		]
+		if not labels:
+			states = ", ".join(document.get("status") or "?" for document in documents) or _("no document")
+			frappe.throw(
+				_(
+					"The shipping label of Shipment {0} is not available yet (LetMeShip status: {1}). Please try again in a few minutes."
+				).format(shipment_id, states),
+				title=_("Shipping Label"),
 			)
-			if "documents" in shipment_label_response_data:
-				for label in shipment_label_response_data["documents"]:
-					if "data" in label:
-						return json.dumps(label["data"])
-			else:
-				frappe.throw(
-					_("Error occurred while printing Shipment: {0}").format(
-						shipment_label_response_data["message"]
-					)
-				)
-		except Exception:
-			show_error_alert("printing LetMeShip Label")
+
+		return labels
 
 	def get_proof_of_delivery(self, shipment_id) -> bytes | None:
 		try:
