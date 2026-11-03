@@ -104,7 +104,8 @@ frappe.ui.form.on("Shipment", {
 				callback: function (r) {
 					if (r.message && r.message.length) {
 						select_from_available_services(frm, r.message);
-					} else {
+					} else if (!r._server_messages) {
+						// the server already explains why there are no services
 						frappe.msgprint({
 							message: __("No Shipment Services available"),
 							title: __("Note"),

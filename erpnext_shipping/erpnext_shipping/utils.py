@@ -21,6 +21,7 @@ def get_address(address_name):
 		"Address",
 		address_name,
 		[
+			"name",
 			"address_title",
 			"address_line1",
 			"address_line2",
@@ -69,7 +70,7 @@ def get_country_code(country_name):
 
 
 def get_contact(contact_name):
-	fields = ["first_name", "last_name", "email_id", "phone", "mobile_no", "gender"]
+	fields = ["name", "first_name", "last_name", "email_id", "phone", "mobile_no", "gender"]
 	contact = frappe.db.get_value("Contact", contact_name, fields, as_dict=1)
 
 	if not contact.last_name:
