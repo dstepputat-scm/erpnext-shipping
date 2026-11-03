@@ -468,7 +468,7 @@ class LetMeShipUtils:
 				"saturdayDelivery": bool(options.saturday_delivery),
 				"ddp": bool(options.ddp),
 				"insurance": bool(options.insurance),
-				"pickupOrder": bool(options.pickup_order),
+				"pickupOrder": False,  # shipments are picked up on the pickup date anyway
 				"pickupTailLift": bool(options.pickup_tail_lift),
 				"deliveryTailLift": bool(options.delivery_tail_lift),
 				"holidayDelivery": bool(options.holiday_delivery),
@@ -716,7 +716,6 @@ def get_shipment_options(shipment) -> frappe._dict:
 		insurance=doc.get("letmeship_insurance"),
 		saturday_delivery=doc.get("letmeship_saturday_delivery"),
 		holiday_delivery=doc.get("letmeship_holiday_delivery"),
-		pickup_order=doc.get("letmeship_pickup_order"),
 		pickup_tail_lift=doc.get("letmeship_pickup_tail_lift"),
 		delivery_tail_lift=doc.get("letmeship_delivery_tail_lift"),
 		ddp=doc.get("incoterm") == "DDP",

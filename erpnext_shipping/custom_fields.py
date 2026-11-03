@@ -132,17 +132,10 @@ def get_custom_fields():
 				**LETMESHIP_OPTION,
 			},
 			{
-				"fieldname": "letmeship_pickup_order",
-				"label": _("Order Pickup from Carrier"),
-				"fieldtype": "Check",
-				"insert_after": "letmeship_holiday_delivery",
-				**LETMESHIP_OPTION,
-			},
-			{
 				"fieldname": "letmeship_pickup_tail_lift",
 				"label": _("Tail Lift at Pickup"),
 				"fieldtype": "Check",
-				"insert_after": "letmeship_pickup_order",
+				"insert_after": "letmeship_holiday_delivery",
 				**LETMESHIP_OPTION,
 			},
 			{

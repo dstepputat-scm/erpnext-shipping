@@ -7,4 +7,6 @@ execute:from erpnext_shipping.install import after_install;after_install()
 execute:from erpnext_shipping.install import after_install;after_install() # 2026-10-27
 execute:from erpnext_shipping.install import after_install;after_install() # 2026-10-28
 execute:from erpnext_shipping.install import after_install;after_install() # 2026-11-03
+erpnext_shipping.erpnext_shipping.patches.remove_letmeship_pickup_order
+execute:from erpnext_shipping.install import after_install;after_install() # 2026-11-04
 erpnext_shipping.erpnext_shipping.patches.set_letmeship_defaults
