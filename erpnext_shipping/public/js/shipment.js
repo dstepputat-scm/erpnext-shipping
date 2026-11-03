@@ -128,20 +128,18 @@ frappe.ui.form.on("Shipment", {
 			},
 			callback: function (r) {
 				if (r.message) {
-					if (frm.doc.service_provider == "LetMeShip") {
-						var array = JSON.parse(r.message);
-						// Uint8Array for unsigned bytes
-						array = new Uint8Array(array);
-						const file = new Blob([array], { type: "application/pdf" });
-						const file_url = URL.createObjectURL(file);
-						window.open(file_url);
-					} else {
-						if (Array.isArray(r.message)) {
-							r.message.forEach((url) => window.open(url));
-						} else {
-							window.open(r.message);
-						}
+					const urls = Array.isArray(r.message) ? r.message : [r.message];
+					const blocked = urls.filter((url) => !window.open(url));
+					if (blocked.length) {
+						// the browser blocked the new tab, offer the links instead
+						frappe.msgprint({
+							title: __("Shipping Label"),
+							message: blocked
+								.map((url) => `<a href="${encodeURI(url)}" target="_blank">${__("Open Shipping Label")}</a>`)
+								.join("<br>"),
+						});
 					}
+					frm.reload_doc();
 				}
 			},
 		});
