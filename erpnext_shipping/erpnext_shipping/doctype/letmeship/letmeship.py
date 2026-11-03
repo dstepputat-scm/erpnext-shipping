@@ -10,7 +10,7 @@ import frappe
 import requests
 from frappe import _
 from frappe.model.document import Document
-from frappe.utils import split_emails
+from frappe.utils import escape_html, split_emails
 from frappe.utils.data import cint, flt, get_link_to_form, get_time
 from requests.exceptions import HTTPError
 
@@ -35,6 +35,10 @@ CUSTOMS_REQUIREMENTS = {
 }
 # Carriers report insurance limits only as free text, e.g. "Shipment can be insured up to 520.00 €."
 INSURANCE_LIMIT_PATTERN = re.compile(r"insured up to\s*([\d.,]+)", re.IGNORECASE)
+# Address fields LetMeShip requires besides country and pincode, which get_address already checks
+REQUIRED_ADDRESS_FIELDS = {"address_line1": "Address Line 1", "city": "City"}
+# Most parcel services only carry parcels up to this weight (kg)
+PARCEL_WEIGHT_LIMIT = 31.5
 
 
 class LetMeShip(Document):
@@ -93,12 +97,94 @@ class LetMeShipUtils:
 		data = response.json()
 		if "status" in data and data["status"]["code"] != "0":
 			frappe.throw(
-				_("An Error occurred while fetching LetMeShip {0}:\n{1}").format(
-					endpoint, json_dumps(data["status"], indent=4)
-				)
+				_("LetMeShip rejected the request: {0}").format(get_error_message(data)),
+				title=_("LetMeShip Error"),
 			)
 
 		return data
+
+	def throw_request_error(self, error: HTTPError, parcels=None):
+		"""Log the failed request and tell the user what went wrong in plain words."""
+		status_code = error.response.status_code
+		log = frappe.log_error(title="LetMeShip Error")
+		details = get_link_to_form("Error Log", log.name, _("Details"))
+
+		if status_code == 401:
+			message = _("The API ID or password in the {0} is not valid.").format(
+				get_link_to_form("LetMeShip", "LetMeShip", _("LetMeShip settings"))
+			)
+		elif status_code >= 500:
+			message = _(
+				"LetMeShip is not available right now or had an internal error (HTTP {0}). Please try again later."
+			).format(status_code)
+		else:
+			message = _("LetMeShip rejected the request (HTTP {0}): {1}").format(
+				status_code, frappe.bold(escape_html(get_error_message(error.response)))
+			)
+
+		hints = self.get_parcel_hints(parcels or [])
+		frappe.throw(
+			"<br>".join([message, *hints, details]),
+			title=_("LetMeShip Error"),
+		)
+
+	def validate_request_data(self, pickup_address, delivery_address, pickup_contact, delivery_contact, parcels):
+		"""Throw one message listing everything LetMeShip needs but the Shipment lacks."""
+		problems = []
+		for label, address in (
+			(_("Pickup Address"), pickup_address),
+			(_("Delivery Address"), delivery_address),
+		):
+			missing = [
+				_(field_label)
+				for fieldname, field_label in REQUIRED_ADDRESS_FIELDS.items()
+				if not (address.get(fieldname) or "").strip()
+			]
+			if missing:
+				problems.append(
+					_("{0} {1}: {2} missing").format(
+						label, get_link_to_form("Address", address.name), ", ".join(missing)
+					)
+				)
+
+		for label, contact in (
+			(_("Pickup Contact"), pickup_contact),
+			(_("Delivery Contact"), delivery_contact),
+		):
+			if contact.get("name"):
+				label = f"{label} {get_link_to_form('Contact', contact.name)}"
+
+			phone = (contact.get("phone") or "").strip()
+			if not phone:
+				problems.append(_("{0}: phone number missing").format(label))
+			elif not phone.startswith("+"):
+				problems.append(
+					_("{0}: phone number {1} has to start with the country code, e.g. +49").format(
+						label, frappe.bold(escape_html(phone))
+					)
+				)
+
+		for idx, parcel in enumerate(parcels, start=1):
+			if flt(parcel.get("weight")) <= 0:
+				problems.append(_("Parcel {0}: weight missing").format(idx))
+
+		if problems:
+			frappe.throw(
+				_("LetMeShip needs the following data:") + "<ul><li>" + "</li><li>".join(problems) + "</li></ul>",
+				title=_("Missing Shipping Data"),
+			)
+
+	def get_parcel_hints(self, parcels):
+		hints = []
+		for idx, parcel in enumerate(parcels, start=1):
+			if flt(parcel.get("weight")) > PARCEL_WEIGHT_LIMIT:
+				hints.append(
+					_(
+						"Note: Parcel {0} weighs {1} kg. Most parcel services only carry up to {2} kg, so there may be no offer for it."
+					).format(idx, flt(parcel.get("weight")), PARCEL_WEIGHT_LIMIT)
+				)
+
+		return hints
 
 	def get_available_services(
 		self,
@@ -122,6 +208,7 @@ class LetMeShipUtils:
 			return []
 
 		options = options or frappe._dict()
+		self.validate_request_data(pickup_address, delivery_address, pickup_contact, delivery_contact, parcels)
 		self.set_letmeship_specific_fields(pickup_contact, delivery_contact)
 		pickup_address.address_title = self.first_30_chars(pickup_address.address_title)
 		delivery_address.address_title = self.first_30_chars(delivery_address.address_title)
@@ -153,9 +240,18 @@ class LetMeShipUtils:
 					available_services.append(available_service)
 
 				return available_services
+		except HTTPError as e:
+			self.throw_request_error(e, parcels)
+		except frappe.ValidationError:
+			raise
 		except Exception:
 			show_error_alert("fetching LetMeShip prices")
+			return []
 
+		frappe.msgprint(
+			"<br>".join([_("LetMeShip found no offers for this Shipment."), *self.get_parcel_hints(parcels)]),
+			title=_("No Services Available"),
+		)
 		return []
 
 	def create_shipment(
@@ -177,6 +273,7 @@ class LetMeShipUtils:
 			frappe.throw(_("LetMeShip booking needs parcel dimensions (length, width, height)."))
 
 		options = options or frappe._dict()
+		self.validate_request_data(pickup_address, delivery_address, pickup_contact, delivery_contact, parcels)
 		self.set_letmeship_specific_fields(pickup_contact, delivery_contact)
 		pickup_address.address_title = self.first_30_chars(pickup_address.address_title)
 		delivery_address.address_title = self.first_30_chars(
@@ -212,6 +309,10 @@ class LetMeShipUtils:
 					"service_notes": "\n".join(self.get_messages(response_data["service"])),
 					"awb_number": self.get_awb_number(shipment_id),
 				}
+		except HTTPError as e:
+			self.throw_request_error(e, parcels)
+		except frappe.ValidationError:
+			raise
 		except Exception:
 			show_error_alert("creating LetMeShip Shipment")
 
@@ -618,6 +719,28 @@ def parse_amount(value: str) -> float:
 		value = value.replace(",", ".")
 
 	return flt(value)
+
+
+def get_error_message(response) -> str:
+	"""Return LetMeShip's error text from a response or its JSON data."""
+	data = response
+	if isinstance(response, requests.Response):
+		try:
+			data = response.json()
+		except ValueError:
+			return (response.text or "").strip()[:500] or response.reason
+
+	if isinstance(data, dict):
+		if data.get("errorMessage"):
+			return data["errorMessage"]
+
+		messages = (data.get("status") or {}).get("message")
+		if isinstance(messages, list):
+			messages = "; ".join(message for message in messages if message)
+		if messages:
+			return messages
+
+	return json_dumps(data)[:500]
 
 
 def decode_document_data(document: dict) -> bytes | None:

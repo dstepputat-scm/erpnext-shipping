@@ -8,6 +8,7 @@ import frappe
 from erpnext_shipping.erpnext_shipping.doctype.letmeship.letmeship import (
 	LetMeShipUtils,
 	decode_document_data,
+	get_error_message,
 	parse_amount,
 )
 
@@ -69,3 +70,9 @@ class TestLetMeShip(unittest.TestCase):
 		self.assertEqual(decode_document_data({"data": [37, 80, 68, 70]}), b"%PDF")
 		self.assertEqual(decode_document_data({"dataEncoded": "JVBERg=="}), b"%PDF")
 		self.assertIsNone(decode_document_data({}))
+
+	def test_error_message(self):
+		self.assertEqual(get_error_message({"errorCode": 400, "errorMessage": "Invalid zip"}), "Invalid zip")
+		self.assertEqual(
+			get_error_message({"status": {"code": "1", "message": ["Weight too high", ""]}}), "Weight too high"
+		)
