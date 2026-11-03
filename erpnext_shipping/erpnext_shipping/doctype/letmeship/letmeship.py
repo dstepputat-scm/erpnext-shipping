@@ -344,7 +344,8 @@ class LetMeShipUtils:
 				title=_("Cancellation failed"),
 			)
 
-		if response_data.get("cancellationState") != "SUCCESSFUL":
+		# documented as SUCCESSFUL / NOT_SUCCESSFUL, the API actually answers "successfully cancelled"
+		if not (response_data.get("cancellationState") or "").lower().startswith("success"):
 			frappe.throw(
 				_("LetMeShip could not cancel Shipment {0}: {1}").format(
 					shipment_id, response_data.get("details") or response_data.get("cancellationState")
@@ -510,7 +511,9 @@ class LetMeShipUtils:
 				"serviceInfo": "",
 			}
 			payload["shipmentNotification"] = self.get_shipment_notification(delivery_contact, options)
-			payload["labelOptions"] = {"labelSize": self.settings.label_size or "default"}
+			if self.settings.label_size and self.settings.label_size != "default":
+				# the API rejects labelOptions as an object although documented like that
+				payload["labelOptions"] = self.settings.label_size
 			payload["labelEmail"] = True
 		return payload
 
