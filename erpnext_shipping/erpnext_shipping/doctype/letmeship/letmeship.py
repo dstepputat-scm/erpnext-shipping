@@ -39,6 +39,19 @@ INSURANCE_LIMIT_PATTERN = re.compile(r"insured up to\s*([\d.,]+)", re.IGNORECASE
 REQUIRED_ADDRESS_FIELDS = {"address_line1": "Address Line 1", "city": "City"}
 # Most parcel services only carry parcels up to this weight (kg)
 PARCEL_WEIGHT_LIMIT = 31.5
+# Transport type on the Shipment -> LetMeShip transportType
+TRANSPORT_TYPES = {
+	"Parcel": "STANDARD",
+	"Express Parcel": "EXPRESS",
+	"Pallet": "STANDARD_PALETTE",
+	"Express Pallet": "EXPRESS_PALETTE",
+	"Same Day": "SAMEDAY",
+	"Freight": "FREIGHT",
+}
+# LetMeShip lists services even if the shipment exceeds their limits and only says so in a message
+UNSUITABLE_SERVICE_PATTERN = re.compile(
+	r"exceeded|not possible|(?:doesn't|does not) support|please enter", re.IGNORECASE
+)
 
 
 class LetMeShip(Document):
@@ -180,7 +193,7 @@ class LetMeShipUtils:
 			if flt(parcel.get("weight")) > PARCEL_WEIGHT_LIMIT:
 				hints.append(
 					_(
-						"Note: Parcel {0} weighs {1} kg. Most parcel services only carry up to {2} kg, so there may be no offer for it."
+						"Note: Parcel {0} weighs {1} kg. Most parcel services only carry up to {2} kg, so there may be no offer for it. Choose a pallet or freight transport type in the LetMeShip options."
 					).format(idx, flt(parcel.get("weight")), PARCEL_WEIGHT_LIMIT)
 				)
 
@@ -471,6 +484,9 @@ class LetMeShipUtils:
 				"accountNumber": options.ex_works_account or "",
 			}
 
+		if options.transport_type:
+			shipment_details["transportType"] = options.transport_type
+
 		if options.reference:
 			shipment_details["defaultReferenceCode"] = options.reference
 
@@ -568,6 +584,11 @@ class LetMeShipUtils:
 		available_service.price_info = price_info
 		available_service.currency = "EUR"
 		available_service.messages = self.get_messages(response)
+		available_service.cut_off_time = (response.get("cutOffTime") or "")[:5]
+		available_service.transfer_time = response.get("transferTime") or ""
+		available_service.unsuitable = any(
+			UNSUITABLE_SERVICE_PATTERN.search(message) for message in available_service.messages
+		)
 		available_service.customs_requirements = [
 			_(label) for key, label in CUSTOMS_REQUIREMENTS.items() if response.get(key)
 		]
@@ -582,7 +603,12 @@ class LetMeShipUtils:
 		return available_service
 
 	def get_messages(self, service):
-		return [message.strip() for message in service.get("messages") or [] if message and message.strip()]
+		# some messages contain several lines separated by <br />
+		lines = []
+		for message in service.get("messages") or []:
+			lines += re.split(r"<br\s*/?>", message or "", flags=re.IGNORECASE)
+
+		return [line.strip() for line in lines if line.strip()]
 
 	def get_insurance_premium(self, price_info):
 		"""Sum of the insurance surcharges. 0 means the insurance is included in the price."""
@@ -699,6 +725,7 @@ def get_shipment_options(shipment) -> frappe._dict:
 		cash_on_delivery=flt(doc.get("letmeship_cod_amount")) if doc.get("letmeship_cash_on_delivery") else 0,
 		pickup_from=doc.get("pickup_from"),
 		pickup_to=doc.get("pickup_to"),
+		transport_type=TRANSPORT_TYPES.get(doc.get("letmeship_transport_type")),
 		reference=(", ".join(delivery_notes) or doc.name)[:35],
 		recipient_emails=doc.get("letmeship_recipient_emails"),
 		tracking_emails=doc.get("letmeship_tracking_emails"),

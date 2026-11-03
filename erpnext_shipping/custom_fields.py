@@ -99,13 +99,22 @@ def get_custom_fields():
 				"insert_after": "description_from_sales_order",
 			},
 			{
+				"fieldname": "letmeship_transport_type",
+				"label": _("Transport Type"),
+				"fieldtype": "Select",
+				"options": "\nParcel\nExpress Parcel\nPallet\nExpress Pallet\nSame Day\nFreight",
+				"description": _("Only show services of this type. Leave empty to see all services."),
+				"insert_after": "letmeship_section",
+				**LETMESHIP_OPTION,
+			},
+			{
 				"fieldname": "letmeship_insurance",
 				"label": _("Insure Shipment"),
 				"fieldtype": "Check",
 				"description": _(
 					"Insures the value of goods. Some carriers only insure up to a limit which is shown when selecting the service."
 				),
-				"insert_after": "letmeship_section",
+				"insert_after": "letmeship_transport_type",
 				**LETMESHIP_OPTION,
 			},
 			{
