@@ -122,10 +122,16 @@ scheduler_events = {"daily": ["erpnext_shipping.erpnext_shipping.utils.update_tr
 #
 # auto_cancel_exempted_doctypes = ["Auto Repeat"]
 
+override_doctype_dashboards = {
+	"Shipment": "erpnext_shipping.erpnext_shipping.dashboards.get_shipment_dashboard_data",
+	"Sales Order": "erpnext_shipping.erpnext_shipping.dashboards.get_sales_order_dashboard_data",
+}
+
 doc_events = {
 	"Shipment": {
 		"validate": [
 			"erpnext_shipping.erpnext_shipping.utils.validate_phone",
+			"erpnext_shipping.erpnext_shipping.shipping.set_sales_order",
 		],
 		"before_cancel": [
 			"erpnext_shipping.erpnext_shipping.shipping.cancel_shipment_with_provider",

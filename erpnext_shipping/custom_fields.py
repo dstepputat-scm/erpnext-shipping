@@ -77,6 +77,13 @@ def get_custom_fields():
 			},
 		],
 		"Shipment": [
+			# the addresses stay on the default "Details" tab
+			{
+				"fieldname": "shipment_parcels_tab",
+				"label": _("Parcels & Content"),
+				"fieldtype": "Tab Break",
+				"insert_after": "delivery_contact",
+			},
 			{
 				"fieldname": "value_from_sales_order",
 				"label": _("Get Value from Sales Order"),
@@ -92,11 +99,25 @@ def get_custom_fields():
 				"insert_after": "description_of_content",
 			},
 			{
+				"fieldname": "sales_order",
+				"label": _("Sales Order"),
+				"fieldtype": "Link",
+				"options": "Sales Order",
+				"description": _("Set from the Delivery Notes or when getting values from a Sales Order."),
+				"insert_after": "description_from_sales_order",
+			},
+			{
+				"fieldname": "letmeship_tab",
+				"label": _("LetMeShip"),
+				"fieldtype": "Tab Break",
+				"insert_after": "sales_order",
+			},
+			{
 				"fieldname": "letmeship_section",
 				"label": _("LetMeShip Options"),
 				"fieldtype": "Section Break",
-				"collapsible": 1,
-				"insert_after": "description_from_sales_order",
+				"collapsible": 0,
+				"insert_after": "letmeship_tab",
 			},
 			{
 				"fieldname": "letmeship_transport_type",
@@ -205,6 +226,19 @@ def get_custom_fields():
 				"description": _("Notified on delivery and on problems in addition to the LetMeShip settings."),
 				"insert_after": "letmeship_recipient_emails",
 				**LETMESHIP_OPTION,
+			},
+			{
+				"fieldname": "shipment_information_tab",
+				"label": _("Booking & Tracking"),
+				"fieldtype": "Tab Break",
+				"insert_after": "letmeship_tracking_emails",
+			},
+			{
+				"fieldname": "connections_tab",
+				"label": _("Connections"),
+				"fieldtype": "Tab Break",
+				"show_dashboard": 1,
+				"insert_after": "amended_from",
 			},
 			{
 				"fieldname": "letmeship_insurance_premium",
