@@ -386,6 +386,17 @@ def get_sales_orders_of_delivery_notes(delivery_notes) -> list[str]:
 	)
 
 
+def set_sales_order(doc, method=None):
+	"""Link the Sales Order of the Delivery Notes, so it shows in the Connections tab."""
+	if doc.get("sales_order") or not doc.meta.has_field("sales_order"):
+		return
+
+	delivery_notes = [d.delivery_note for d in doc.get("shipment_delivery_note") or [] if d.delivery_note]
+	sales_orders = get_sales_orders_of_delivery_notes(delivery_notes)
+	if sales_orders:
+		doc.sales_order = sales_orders[0]
+
+
 @frappe.whitelist()
 def get_sales_order_details(sales_order: str) -> dict:
 	"""Return the value of goods and a description of content for a Sales Order."""
