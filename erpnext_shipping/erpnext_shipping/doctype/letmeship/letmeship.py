@@ -642,16 +642,12 @@ class LetMeShipUtils:
 		pickup_contact.phone_prefix = pickup_contact.phone[:3]
 		pickup_contact.phone = re.sub("[^A-Za-z0-9]+", "", pickup_contact.phone[3:])
 
-		pickup_contact.title = "MS"
-		if pickup_contact.gender == "Male":
-			pickup_contact.title = "MR"
-
 		delivery_contact.phone_prefix = delivery_contact.phone[:3]
 		delivery_contact.phone = re.sub("[^A-Za-z0-9]+", "", delivery_contact.phone[3:])
 
-		delivery_contact.title = "MS"
-		if delivery_contact.gender == "Male":
-			delivery_contact.title = "MR"
+		# no salutation without a gender, e.g. for a department as contact
+		for contact in (pickup_contact, delivery_contact):
+			contact.title = {"Male": "MR", "Female": "MS"}.get(contact.gender)
 
 	def get_parcel_list(self, parcels, description_of_content, cash_on_delivery=None):
 		parcel_list = []
@@ -675,7 +671,7 @@ class LetMeShipUtils:
 		return parcel_list
 
 	def get_pickup_delivery_info(self, address, contact):
-		return {
+		info = {
 			"address": {
 				"countryCode": address.country_code,
 				"zip": address.pincode,
@@ -693,6 +689,9 @@ class LetMeShipUtils:
 			"phone": {"phoneNumber": contact.phone, "phoneNumberPrefix": contact.phone_prefix},
 			"email": contact.email_id,
 		}
+		if not contact.title:
+			del info["person"]["title"]  # the API's title is optional
+		return info
 
 	def validate_parcels(self, parcels):
 		for parcel in parcels:
