@@ -142,6 +142,12 @@ doc_events = {
 		"before_update_after_submit": [
 			"erpnext_shipping.erpnext_shipping.shipping.set_pallets",
 		],
+		"before_insert": [
+			"erpnext_shipping.erpnext_shipping.shipping.clear_booking_of_amendment",
+		],
+		"on_update": [
+			"erpnext_shipping.erpnext_shipping.shipping.remove_copied_labels",
+		],
 		"before_cancel": [
 			"erpnext_shipping.erpnext_shipping.shipping.cancel_shipment_with_provider",
 		],

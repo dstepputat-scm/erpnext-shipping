@@ -439,3 +439,45 @@ def make_shipment_from_delivery_note(source_name: str, target_doc=None):
 		shipment.pickup_address_name = dispatch_address
 		shipment.pickup_address = get_address_display(dispatch_address)
 	return shipment
+
+
+# an amendment copies all fields, even no_copy ones, so it would look booked already
+BOOKING_FIELDS = (
+	"service_provider",
+	"shipment_id",
+	"shipment_amount",
+	"tracking_url",
+	"carrier",
+	"carrier_service",
+	"awb_number",
+	"tracking_status",
+	"tracking_status_info",
+	"letmeship_insurance_premium",
+	"letmeship_service_notes",
+	"letmeship_tracking_history",
+)
+
+
+def clear_booking_of_amendment(doc, method=None):
+	"""The amendment of a cancelled Shipment has to be booked again."""
+	if doc.amended_from:
+		for fieldname in BOOKING_FIELDS:
+			doc.set(fieldname, None)
+
+
+def remove_copied_labels(doc, method=None):
+	"""Remove the labels of the cancelled Shipment that the amendment copied."""
+	if not doc.amended_from or doc.docstatus != 0:
+		return
+
+	for file in frappe.get_all(
+		"File",
+		filters={
+			"attached_to_doctype": "Shipment",
+			"attached_to_name": doc.name,
+			"file_name": ["like", f"label_{doc.amended_from}%"],
+		},
+		fields=["name", "file_name"],
+	):
+		if not file.file_name.startswith(f"label_{doc.name}"):
+			frappe.delete_doc("File", file.name, ignore_permissions=True)
