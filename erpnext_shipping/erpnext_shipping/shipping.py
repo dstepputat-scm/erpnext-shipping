@@ -422,3 +422,20 @@ def get_sales_order_details(sales_order: str) -> dict:
 			f"{qty:g} x {item_name}" for item_name, qty in quantities.items()
 		),
 	}
+
+
+@frappe.whitelist()
+def make_shipment_from_delivery_note(source_name: str, target_doc=None):
+	"""Like ERPNext's make_shipment, but pick up at the Dispatch Address of the Delivery Note.
+
+	ERPNext uses the Company Address, which is usually the billing address.
+	"""
+	from erpnext.stock.doctype.delivery_note.delivery_note import make_shipment
+	from frappe.contacts.doctype.address.address import get_address_display
+
+	shipment = make_shipment(source_name, target_doc)
+	dispatch_address = frappe.db.get_value("Delivery Note", source_name, "dispatch_address_name")
+	if dispatch_address:
+		shipment.pickup_address_name = dispatch_address
+		shipment.pickup_address = get_address_display(dispatch_address)
+	return shipment

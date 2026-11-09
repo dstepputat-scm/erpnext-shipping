@@ -128,6 +128,10 @@ override_doctype_dashboards = {
 	"Stock Entry": "erpnext_shipping.erpnext_shipping.dashboards.get_stock_entry_dashboard_data",
 }
 
+override_whitelisted_methods = {
+	"erpnext.stock.doctype.delivery_note.delivery_note.make_shipment": "erpnext_shipping.erpnext_shipping.shipping.make_shipment_from_delivery_note",
+}
+
 doc_events = {
 	"Shipment": {
 		"validate": [
