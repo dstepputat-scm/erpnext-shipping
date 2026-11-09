@@ -133,6 +133,10 @@ doc_events = {
 		"validate": [
 			"erpnext_shipping.erpnext_shipping.utils.validate_phone",
 			"erpnext_shipping.erpnext_shipping.shipping.set_sales_order",
+			"erpnext_shipping.erpnext_shipping.shipping.set_pallets",
+		],
+		"before_update_after_submit": [
+			"erpnext_shipping.erpnext_shipping.shipping.set_pallets",
 		],
 		"before_cancel": [
 			"erpnext_shipping.erpnext_shipping.shipping.cancel_shipment_with_provider",

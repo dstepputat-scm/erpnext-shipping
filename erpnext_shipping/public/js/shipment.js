@@ -51,12 +51,27 @@ frappe.ui.form.on("Shipment", {
 						if (frm.doc.tracking_url) {
 							const urls = frm.doc.tracking_url.split(", ");
 							urls.forEach((url) => window.open(url));
+						} else if (frm.doc.awb_number) {
+							// the carrier is known, but its Parcel Service has no tracking URL template
+							frappe.msgprint({
+								title: __("No Tracking Link"),
+								message: __(
+									"There is no tracking link for {0}. Tracking number: {1}. Add the tracking URL in Parcel Service {2}, then click Update Tracking.",
+									[
+										frm.doc.carrier || frm.doc.service_provider,
+										frappe.utils.escape_html(frm.doc.awb_number).bold(),
+										frappe.utils.get_form_link("Parcel Service", frm.doc.carrier || "", true),
+									],
+								),
+							});
 						} else {
-							let msg = __("Please complete Shipment (ID: {0}) on {1} and Update Tracking.", [
-								frm.doc.shipment_id,
-								frm.doc.service_provider,
-							]);
-							frappe.msgprint({ message: msg, title: __("Incomplete Shipment") });
+							frappe.msgprint({
+								title: __("No Tracking Data Yet"),
+								message: __(
+									"{0} has not provided a tracking number for Shipment {1} yet. Please try Update Tracking later.",
+									[frm.doc.service_provider, frm.doc.shipment_id],
+								),
+							});
 						}
 					},
 					__("View"),

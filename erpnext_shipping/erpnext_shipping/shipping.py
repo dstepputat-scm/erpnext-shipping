@@ -386,6 +386,14 @@ def get_sales_orders_of_delivery_notes(delivery_notes) -> list[str]:
 	)
 
 
+PALLET_TRANSPORT_TYPES = ("Pallet", "Express Pallet")
+
+
+def set_pallets(doc, method=None):
+	"""Keep the standard Pallets field in line with the LetMeShip transport type."""
+	doc.pallets = "Yes" if doc.get("letmeship_transport_type") in PALLET_TRANSPORT_TYPES else "No"
+
+
 def set_sales_order(doc, method=None):
 	"""Link the Sales Order of the Delivery Notes, so it shows in the Connections tab."""
 	if doc.get("sales_order") or not doc.meta.has_field("sales_order"):

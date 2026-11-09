@@ -11,3 +11,5 @@ erpnext_shipping.erpnext_shipping.patches.remove_letmeship_pickup_order
 execute:from erpnext_shipping.install import after_install;after_install() # 2026-11-04
 erpnext_shipping.erpnext_shipping.patches.set_letmeship_defaults
 execute:from erpnext_shipping.install import after_install;after_install() # 2026-11-04 tabs
+execute:from erpnext_shipping.install import after_install;after_install() # 2026-11-09 pallets
+erpnext_shipping.erpnext_shipping.patches.set_pallets_from_transport_type
