@@ -26,7 +26,7 @@ def get_custom_fields():
 				"fieldname": "parcel_service",
 				"label": _("Parcel Service"),
 				"fieldtype": "Data",  # needs to be "Data" for backward compat
-				"options": "Parcel Service",
+				"options": "",  # a Data field only takes Email, Phone, URL etc. as options
 				"read_only": 1,
 				"insert_after": "delivery_type",
 			},
@@ -34,7 +34,7 @@ def get_custom_fields():
 				"fieldname": "parcel_service_type",
 				"label": _("Parcel Service Type"),
 				"fieldtype": "Data",  # needs to be "Data" for backward compat
-				"options": "Parcel Service Type",
+				"options": "",
 				"read_only": 1,
 				"insert_after": "parcel_service",
 			},
