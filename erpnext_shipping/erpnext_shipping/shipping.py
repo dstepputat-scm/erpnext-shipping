@@ -406,18 +406,21 @@ def set_sales_order(doc, method=None):
 
 
 @frappe.whitelist()
-def get_sales_order_details(sales_order: str) -> dict:
-	"""Return the value of goods and a description of content for a Sales Order."""
-	sales_order_doc = frappe.get_doc("Sales Order", sales_order)
-	sales_order_doc.check_permission("read")
+def get_order_details(doctype: str, name: str) -> dict:
+	"""Return the value of goods and a description of content for a Sales or Purchase Order."""
+	if doctype not in ("Sales Order", "Purchase Order"):
+		frappe.throw(_("Only Sales and Purchase Orders are supported."))
+
+	order = frappe.get_doc(doctype, name)
+	order.check_permission("read")
 
 	quantities = {}
-	for item in sales_order_doc.items:
+	for item in order.items:
 		quantities[item.item_name] = quantities.get(item.item_name, 0) + item.qty
 
 	return {
 		# net value in company currency, without taxes
-		"value_of_goods": sales_order_doc.base_net_total,
+		"value_of_goods": order.base_net_total,
 		"description_of_content": ", ".join(
 			f"{qty:g} x {item_name}" for item_name, qty in quantities.items()
 		),

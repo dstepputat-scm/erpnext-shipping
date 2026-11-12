@@ -104,13 +104,29 @@ def get_custom_fields():
 				"fieldtype": "Link",
 				"options": "Sales Order",
 				"description": _("Set from the Delivery Notes or when getting values from a Sales Order."),
+				"insert_after": "description_from_purchase_order",
+			},
+			{
+				# shipments in the purchase process, e.g. created from a Purchase Order
+				"fieldname": "description_from_purchase_order",
+				"label": _("Get Description from Purchase Order"),
+				"fieldtype": "Button",
+				"depends_on": "eval:doc.docstatus === 0 && (doc.delivery_to_type === 'Supplier' || doc.purchase_order)",
 				"insert_after": "description_from_sales_order",
+			},
+			{
+				"fieldname": "purchase_order",
+				"label": _("Purchase Order"),
+				"fieldtype": "Link",
+				"options": "Purchase Order",
+				"description": _("Set when creating the Shipment from a Purchase Order or getting its description."),
+				"insert_after": "sales_order",
 			},
 			{
 				"fieldname": "letmeship_tab",
 				"label": _("LetMeShip"),
 				"fieldtype": "Tab Break",
-				"insert_after": "sales_order",
+				"insert_after": "purchase_order",
 			},
 			{
 				"fieldname": "letmeship_section",

@@ -14,10 +14,11 @@ def get_shipment_dashboard_data(data):
 		{
 			"Delivery Note": ["shipment_delivery_note", "delivery_note"],
 			"Sales Order": "sales_order",
+			"Purchase Order": "purchase_order",
 		}
 	)
 	data.non_standard_fieldnames = data.non_standard_fieldnames or {}
-	items = ["Sales Order", "Delivery Note"]
+	items = ["Sales Order", "Delivery Note", "Purchase Order"]
 	for doctype in LINKING_DOCTYPES:
 		fieldname = get_shipment_link_field(doctype)
 		if fieldname:
@@ -30,8 +31,8 @@ def get_shipment_dashboard_data(data):
 	return data
 
 
-def get_sales_order_dashboard_data(data):
-	"""Show the Shipments of a Sales Order in its Connections tab."""
+def get_order_dashboard_data(data):
+	"""Show the Shipments of a Sales or Purchase Order in its Connections tab."""
 	data = frappe._dict(data)
 	data.transactions = data.transactions or []
 	for group in data.transactions:

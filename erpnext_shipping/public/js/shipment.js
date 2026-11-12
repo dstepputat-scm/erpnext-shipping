@@ -88,6 +88,10 @@ frappe.ui.form.on("Shipment", {
 		get_from_sales_order(frm, "description_of_content");
 	},
 
+	description_from_purchase_order: function (frm) {
+		get_from_purchase_order(frm, "description_of_content");
+	},
+
 	fetch_shipping_rates: function (frm) {
 		if (!frm.doc.shipment_id) {
 			if (frm.is_dirty()) {
@@ -214,29 +218,50 @@ async function get_from_sales_order(frm, fieldname) {
 	}
 
 	const customer = frm.doc.delivery_to_type === "Customer" ? frm.doc.delivery_customer : null;
-	const dialog = new frappe.ui.Dialog({
+	select_order(frm, fieldname, {
+		doctype: "Sales Order",
+		link_field: "sales_order",
 		title: __("Select Sales Order"),
+		default: default_sales_order,
+		filters: customer ? { customer: customer } : {},
+		description: customer ? __("Sales Orders of {0}", [customer]) : "",
+	});
+}
+
+function get_from_purchase_order(frm, fieldname) {
+	const supplier = frm.doc.delivery_to_type === "Supplier" ? frm.doc.delivery_supplier : null;
+	select_order(frm, fieldname, {
+		doctype: "Purchase Order",
+		link_field: "purchase_order",
+		title: __("Select Purchase Order"),
+		default: frm.doc.purchase_order,
+		filters: supplier ? { supplier: supplier } : {},
+		description: supplier ? __("Purchase Orders of {0}", [supplier]) : "",
+	});
+}
+
+function select_order(frm, fieldname, order) {
+	const dialog = new frappe.ui.Dialog({
+		title: order.title,
 		fields: [
 			{
 				fieldtype: "Link",
-				fieldname: "sales_order",
-				label: __("Sales Order"),
-				options: "Sales Order",
+				fieldname: "order",
+				label: __(order.doctype),
+				options: order.doctype,
 				reqd: 1,
-				default: default_sales_order,
-				description: customer ? __("Sales Orders of {0}", [customer]) : "",
-				get_query: () => ({
-					filters: Object.assign({ docstatus: 1 }, customer ? { customer: customer } : {}),
-				}),
+				default: order.default,
+				description: order.description,
+				get_query: () => ({ filters: Object.assign({ docstatus: 1 }, order.filters) }),
 			},
 		],
 		primary_action_label: __("Apply"),
 		primary_action: async (values) => {
 			const r = await frappe.call({
-				method: "erpnext_shipping.erpnext_shipping.shipping.get_sales_order_details",
-				args: { sales_order: values.sales_order },
+				method: "erpnext_shipping.erpnext_shipping.shipping.get_order_details",
+				args: { doctype: order.doctype, name: values.order },
 			});
-			frm.set_value("sales_order", values.sales_order);
+			frm.set_value(order.link_field, values.order);
 			frm.set_value(fieldname, r.message[fieldname]);
 			dialog.hide();
 		},

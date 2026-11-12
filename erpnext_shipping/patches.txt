@@ -14,3 +14,4 @@ execute:from erpnext_shipping.install import after_install;after_install() # 202
 execute:from erpnext_shipping.install import after_install;after_install() # 2026-11-09 pallets
 erpnext_shipping.erpnext_shipping.patches.set_pallets_from_transport_type
 execute:from erpnext_shipping.install import after_install;after_install() # 2026-11-10 data field options
+execute:from erpnext_shipping.install import after_install;after_install() # 2026-11-12 purchase order

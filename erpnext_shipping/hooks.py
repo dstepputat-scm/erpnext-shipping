@@ -124,7 +124,8 @@ scheduler_events = {"daily": ["erpnext_shipping.erpnext_shipping.utils.update_tr
 
 override_doctype_dashboards = {
 	"Shipment": "erpnext_shipping.erpnext_shipping.dashboards.get_shipment_dashboard_data",
-	"Sales Order": "erpnext_shipping.erpnext_shipping.dashboards.get_sales_order_dashboard_data",
+	"Sales Order": "erpnext_shipping.erpnext_shipping.dashboards.get_order_dashboard_data",
+	"Purchase Order": "erpnext_shipping.erpnext_shipping.dashboards.get_order_dashboard_data",
 	"Stock Entry": "erpnext_shipping.erpnext_shipping.dashboards.get_stock_entry_dashboard_data",
 }
 
