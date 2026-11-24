@@ -258,13 +258,35 @@ def attach_proof_of_delivery(shipment: str, shipment_id: str) -> str | None:
 	if not content:
 		return None
 
-	return save_attachment(shipment, f"pod_{shipment}.pdf", content)
+	# carriers send PDFs or scanned images
+	extension = get_file_extension(content)
+	if not extension:
+		frappe.log_error(title=f"LetMeShip Proof of Delivery {shipment}", message=f"Unknown file type: {content[:16]!r}")
+		return None
+
+	return save_attachment(shipment, f"pod_{shipment}.{extension}", content)
+
+
+FILE_SIGNATURES = {b"%PDF": "pdf", b"\x89PNG": "png", b"\xff\xd8\xff": "jpg", b"GIF8": "gif", b"II*\x00": "tif", b"MM\x00*": "tif"}
+
+
+def get_file_extension(content: bytes) -> str | None:
+	"""Return the file extension that matches the content, or None if unknown."""
+	return next((ext for signature, ext in FILE_SIGNATURES.items() if content.startswith(signature)), None)
+
+
+assert get_file_extension(b"%PDF-1.4") == "pdf" and get_file_extension(b"\xff\xd8\xff\xe0") == "jpg"
+assert get_file_extension(b"\x89PNG\r\n") == "png" and get_file_extension(b"unknown") is None
 
 
 def get_proof_of_delivery_file(shipment: str) -> str | None:
 	return frappe.db.get_value(
 		"File",
-		{"attached_to_doctype": "Shipment", "attached_to_name": shipment, "file_name": f"pod_{shipment}.pdf"},
+		{
+			"attached_to_doctype": "Shipment",
+			"attached_to_name": shipment,
+			"file_name": ["like", f"pod_{shipment}.%"],
+		},
 		"file_url",
 	)
 
@@ -344,7 +366,11 @@ def update_tracking(shipment, service_provider, shipment_id, delivery_notes=None
 		and frappe.db.get_single_value("LetMeShip", "attach_proof_of_delivery")
 		and not get_proof_of_delivery_file(shipment.name)
 	):
-		attach_proof_of_delivery(shipment.name, shipment_id)
+		try:
+			attach_proof_of_delivery(shipment.name, shipment_id)
+		except Exception:
+			# the tracking update must not fail because of a broken proof of delivery
+			frappe.log_error(title=f"LetMeShip Proof of Delivery {shipment.name}")
 
 	if delivery_notes:
 		update_delivery_note(delivery_notes=delivery_notes, tracking_info=tracking_data)
