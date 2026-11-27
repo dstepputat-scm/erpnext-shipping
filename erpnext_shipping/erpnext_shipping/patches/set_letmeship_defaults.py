@@ -6,6 +6,8 @@ DEFAULTS = {
 	"attach_proof_of_delivery": 1,
 	"cancel_at_letmeship": 1,
 	"label_size": "default",
+	# LetMeShip has always printed the party name on the label
+	"use_party_name_as_company_name": 1,
 }
 
 

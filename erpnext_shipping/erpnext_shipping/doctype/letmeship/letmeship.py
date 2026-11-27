@@ -289,9 +289,11 @@ class LetMeShipUtils:
 		self.validate_request_data(pickup_address, delivery_address, pickup_contact, delivery_contact, parcels)
 		self.set_letmeship_specific_fields(pickup_contact, delivery_contact)
 		pickup_address.address_title = self.first_30_chars(pickup_address.address_title)
-		delivery_address.address_title = self.first_30_chars(
-			delivery_company_name or delivery_address.address_title
-		)
+
+		use_party_name = frappe.get_single("LetMeShip").get("use_party_name_as_company_name")
+		if use_party_name and delivery_company_name:
+			delivery_address.address_title = delivery_company_name
+		delivery_address.address_title = self.first_30_chars(delivery_address.address_title)
 		parcel_list = self.get_parcel_list(parcels, description_of_content, options.cash_on_delivery)
 
 		payload = self.generate_payload(

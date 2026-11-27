@@ -1,9 +1,177 @@
 # Copyright (c) 2020, Frappe and Contributors
 # See license.txt
 
-# import frappe
-import unittest
+import json
+from unittest.mock import MagicMock, patch
+
+import frappe
+from frappe.tests.utils import FrappeTestCase
+
+from erpnext_shipping.erpnext_shipping.doctype.sendcloud.sendcloud import SendCloudUtils
+from erpnext_shipping.erpnext_shipping.shipping import create_shipment, fetch_shipping_rates
+
+REQUESTS_POST = "erpnext_shipping.erpnext_shipping.doctype.sendcloud.sendcloud.requests.post"
 
 
-class TestSendCloud(unittest.TestCase):
-	pass
+def shipping_option(code, carrier, name, quotes, quote_error=None):
+	return {
+		"code": code,
+		"name": name,
+		"carrier": {"code": carrier.lower(), "name": carrier},
+		"quotes": quotes,
+		"quote_error": quote_error,
+	}
+
+
+PRICED_OPTION = shipping_option(
+	"dhl:paket",
+	"DHL",
+	"DHL Paket",
+	quotes=[{"price": {"total": {"value": "5.90", "currency": "EUR"}}}],
+)
+UNPRICED_OPTION = shipping_option(
+	"ups:standard",
+	"UPS",
+	"UPS Standard",
+	quotes=[],
+	quote_error={
+		"code": "no_price_for_route",
+		"title": "Price missing",
+		"description": "No price is available for this route.",
+	},
+)
+
+
+class TestSendCloud(FrappeTestCase):
+	def setUp(self):
+		frappe.db.set_single_value("LetMeShip", "enabled", 0)
+		settings = frappe.get_single("SendCloud")
+		settings.enabled = 1
+		settings.api_key = "test-key"
+		settings.api_secret = "test-secret"
+		settings.use_party_name_as_company_name = 0
+		settings.save()
+
+	def make_address(self, title):
+		# ERPNext renders the address on save, which needs an Address Template
+		if not frappe.db.exists("Address Template", "Germany"):
+			frappe.get_doc({"doctype": "Address Template", "country": "Germany"}).insert()
+
+		return frappe.get_doc(
+			{
+				"doctype": "Address",
+				"address_title": title,
+				"address_type": "Shipping",
+				"address_line1": "Teststrasse 1",
+				"city": "Berlin",
+				"pincode": "10115",
+				"country": "Germany",
+			}
+		).insert()
+
+	def test_unpriced_options_are_returned_with_reason(self):
+		pickup_address = self.make_address("Test Pickup")
+		delivery_address = self.make_address("Test Delivery")
+		response = MagicMock()
+		response.json.return_value = {"data": [UNPRICED_OPTION, PRICED_OPTION]}
+
+		with patch(REQUESTS_POST, return_value=response):
+			services = fetch_shipping_rates(
+				pickup_from_type="Company",
+				delivery_to_type="Customer",
+				pickup_address_name=pickup_address.name,
+				delivery_address_name=delivery_address.name,
+				parcels=json.dumps([{"weight": 1, "count": 1}]),
+				description_of_content="Test",
+				pickup_date="2026-01-01",
+				value_of_goods=10,
+			)
+
+		service_names = [service.service_name for service in services]
+		self.assertEqual(service_names, ["DHL Paket", "UPS Standard"])
+
+		unpriced_service = services[1]
+		self.assertIsNone(unpriced_service.get("total_price"))
+		self.assertEqual(unpriced_service.quote_error_title, "Price missing")
+		self.assertEqual(unpriced_service.quote_error_description, "No price is available for this route.")
+
+	def test_unpriced_service_cannot_be_booked(self):
+		service_data = json.dumps(
+			{
+				"service_provider": "SendCloud",
+				"carrier": "UPS",
+				"service_name": "UPS Standard",
+				"service_id": "ups:standard",
+			}
+		)
+
+		with patch(REQUESTS_POST) as post, self.assertRaises(frappe.ValidationError):
+			create_shipment(
+				shipment="does-not-matter",
+				pickup_from_type="Company",
+				delivery_to_type="Customer",
+				pickup_address_name="does-not-matter",
+				delivery_address_name="does-not-matter",
+				shipment_parcel="[]",
+				description_of_content="Test",
+				pickup_date="2026-01-01",
+				value_of_goods=10,
+				service_data=service_data,
+			)
+
+		post.assert_not_called()
+
+	def test_label_uses_address_title_by_default(self):
+		company_name = self.announce_and_get_company_name(delivery_company_name="Kunde GmbH")
+		self.assertEqual(company_name, "Kunde GmbH-Shipping")
+
+	def test_label_uses_party_name_when_enabled(self):
+		frappe.db.set_single_value("SendCloud", "use_party_name_as_company_name", 1)
+		company_name = self.announce_and_get_company_name(delivery_company_name="Kunde GmbH")
+		self.assertEqual(company_name, "Kunde GmbH")
+
+	def test_label_falls_back_to_address_title_without_party(self):
+		frappe.db.set_single_value("SendCloud", "use_party_name_as_company_name", 1)
+		company_name = self.announce_and_get_company_name(delivery_company_name=None)
+		self.assertEqual(company_name, "Kunde GmbH-Shipping")
+
+	def announce_and_get_company_name(self, delivery_company_name):
+		"""Announce a shipment with a mocked SendCloud API and return the company name sent."""
+		delivery_address = frappe._dict(
+			address_title="Kunde GmbH-Shipping",
+			address_line1="Lieferweg 2",
+			pincode="20095",
+			city="Hamburg",
+			country_code="de",
+		)
+		pickup_address = frappe._dict(
+			address_title="Test Pickup",
+			address_line1="Teststrasse 1",
+			pincode="10115",
+			city="Berlin",
+			country_code="de",
+		)
+		contact = frappe._dict(first_name="Erika", last_name="Muster", phone="+49 30 1234", email_id="")
+		service_info = {
+			"carrier": "UPS",
+			"service_name": "UPS Standard",
+			"service_id": "ups:standard",
+			"total_price": 9.5,
+		}
+		response = MagicMock()
+		response.json.return_value = {"data": {"parcels": [{"id": 1, "tracking_number": "1Z"}]}}
+
+		with patch(REQUESTS_POST, return_value=response) as post:
+			SendCloudUtils().create_shipment(
+				shipment="SHIP-0001",
+				pickup_address=pickup_address,
+				pickup_contact=contact,
+				delivery_address=delivery_address,
+				delivery_company_name=delivery_company_name,
+				delivery_contact=contact,
+				service_info=service_info,
+				shipment_parcel=json.dumps([{"weight": 1, "count": 1}]),
+			)
+
+		payload = post.call_args.kwargs["json"]
+		return payload["to_address"]["company_name"]

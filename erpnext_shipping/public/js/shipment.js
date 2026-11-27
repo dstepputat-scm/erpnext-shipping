@@ -367,6 +367,7 @@ function show_service_selector(frm, available_services) {
 			sections: sections,
 		}),
 	);
+	dialog.$body.find('[data-toggle="tooltip"]').tooltip({ trigger: "hover", container: "body" });
 
 	dialog.$body.on("click", "button[data-type]", function () {
 		const service_type = $(this).attr("data-type");

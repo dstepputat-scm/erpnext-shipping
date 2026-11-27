@@ -9,6 +9,7 @@
   "use_test_environment",
   "api_id",
   "api_password",
+  "use_party_name_as_company_name",
   "notifications_section",
   "notify_recipient",
   "carrier_notification",
@@ -45,6 +46,13 @@
    "fieldname": "use_test_environment",
    "fieldtype": "Check",
    "label": "Use Test Environment"
+  },
+  {
+   "default": "1",
+   "description": "Print the name of the Customer, Supplier or Company of the Shipment as company name on the label. If unchecked, the address title is used.",
+   "fieldname": "use_party_name_as_company_name",
+   "fieldtype": "Check",
+   "label": "Use Party Name as Company Name"
   },
   {
    "fieldname": "notifications_section",
@@ -115,7 +123,7 @@
  ],
  "issingle": 1,
  "links": [],
- "modified": "2026-10-27 12:00:00.000000",
+ "modified": "2026-11-19 16:12:59.347422",
  "modified_by": "Administrator",
  "module": "ERPNext Shipping",
  "name": "LetMeShip",
